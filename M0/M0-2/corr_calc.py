@@ -6,7 +6,7 @@ import sys
 def pearson_correlation(xs, ys):
     n = len(xs)
     if n == 0:
-        return None
+        return None,None,None,None
     sum_x = 0.0
     sum_y = 0.0
     for i in range(n):
@@ -26,7 +26,7 @@ def pearson_correlation(xs, ys):
         dy += b * b
         prod += a * b
     if dx==0 or dy==0:
-        return None
+        return None,None,None,None
     denom = math.sqrt(dx * dy)
     r = prod / denom
     return n,mean_x,mean_y,r

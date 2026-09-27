@@ -2,7 +2,7 @@ import yaml
 import csv
 import math
 import argparse
-
+import sys
 def pearson_correlation(xs, ys):
     n = len(xs)
     if n == 0:
@@ -49,21 +49,30 @@ def main():
         ys = []
         with open(csv_path) as f:
             reader = csv.DictReader(f)
+            if col_x not in reader.fieldnames or col_y not in reader.fieldnames:
+                print("Error: 列名不匹配")
+                return
             for row in reader:
                 xs.append(float(row[col_x]))
                 ys.append(float(row[col_y]))
+            if len(xs)==0 or len(ys)==0:
+                print("Error:文件为空")
 
         r = pearson_correlation(xs, ys)
-        if e is None:
-            print("Error:方差为0，某列取值恒定，无法计算相关系数")
+        if r is None:
+            print("Error:方差为0,某列取值恒定，无法计算相关系数")
+            sys.exit(1)
         else:
             print(f"r = {r}")
     except FileNotFoundError:
-        print("Error: 文件找不到")
+        print("Error: 文件不存在")
+        sys.exit(1)
     except KeyError:
         print("Error: 配置字段缺失")
+        sys.exit(1)
     except Exception as e:
         print(f"Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

@@ -29,7 +29,7 @@ def pearson_correlation(xs, ys):
         return None
     denom = math.sqrt(dx * dy)
     r = prod / denom
-    return r
+    return n,mean_x,mean_y,r
 
 def main():
     parser = argparse.ArgumentParser()
@@ -58,11 +58,14 @@ def main():
             if len(xs)==0 or len(ys)==0:
                 print("Error:文件为空")
 
-        r = pearson_correlation(xs, ys)
+        n,mean_x,mean_y,r = pearson_correlation(xs, ys)
         if r is None:
             print("Error:方差为0,某列取值恒定，无法计算相关系数")
             sys.exit(1)
         else:
+            print(f"n = {n}")
+            print(f"mean_x = {mean_x}")
+            print(f"mean_y = {mean_y}")
             print(f"r = {r}")
     except FileNotFoundError:
         print("Error: 文件不存在")

@@ -32,3 +32,5 @@ if __name__ == "__main__":
     test_positive_corr()
     test_negative_corr()
     test_zero_variance()
+    test_empty_data()
+    test_missing_column()

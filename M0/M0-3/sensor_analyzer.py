@@ -15,7 +15,7 @@ sensor_analyzer.py  —— 上一届学长留下的"能用"的脚本
 
 现状：跑不通 / 跑出来数不对。就交给你了。
 """
-
+import math
 import csv
 import os
 
@@ -49,8 +49,8 @@ mean = total / len(data)
 # --- 计算标准差 ---
 acc = 0
 for v in data:
-    acc += (v - mean)
-std = acc / len(data)
+    acc += (v - mean)**2
+std = math.sqrt(acc / len(data))
 
 # --- 剔除离群值 ---
 for v in data:

@@ -59,6 +59,8 @@ for v in data:
 
 # --- 输出清洗后的数据 ---
 output_path = os.path.join( OUTPUT_DIR, OUTPUT_FILE)
+if OUTPUT_DIR:
+    os.makedirs(OUTPUT_DIR,exist_ok=True)
 f = open(output_path, "w")
 writer = csv.writer(f)
 writer.writerow(["time", "value"])

@@ -51,12 +51,13 @@ def main():
             reader = csv.DictReader(f)
             if col_x not in reader.fieldnames or col_y not in reader.fieldnames:
                 print("Error: 列名不匹配")
-                return
+                sys.exit(1)
             for row in reader:
                 xs.append(float(row[col_x]))
                 ys.append(float(row[col_y]))
             if len(xs)==0 or len(ys)==0:
                 print("Error:文件为空")
+                sys.exit(1)
 
         n,mean_x,mean_y,r = pearson_correlation(xs, ys)
         if r is None:

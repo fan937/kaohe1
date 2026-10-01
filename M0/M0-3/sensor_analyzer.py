@@ -18,6 +18,7 @@ sensor_analyzer.py  —— 上一届学长留下的"能用"的脚本
 import math
 import csv
 import os
+import sys
 
 INPUT_FILE = "sensor_data.csv"
 OUTPUT_FILE = "cleaned_data.csv"
@@ -31,16 +32,28 @@ cleaned_times=[]
 print("=== 传感器数据分析 ===")
 
 # --- 读取数据 ---
-reader = csv.DictReader(open(INPUT_FILE, "r"))
-
-for row in reader:
-    t = float(row["time"])
-    v = float(row["value"])
-    times.append(t)
-    data.append(v)
-
+try:
+    with open(INPUT_FILE, "r") as f:
+        reader = csv.DictReader(f)
+        if "time" not in reader.fieldnames or "value" not in reader.fieldnames:
+            print("Error: 列名不匹配或缺列")
+            sys.exit(1)
+        for row in reader:
+            try:
+                t = float(row["time"])
+                v = float(row["value"])
+            except ValueError:
+                print("Error: 非数值内容")
+                sys.exit(1)
+            times.append(t)
+            data.append(v)
+except FileNotFoundError:
+    print("Error: 文件不存在")
+    sys.exit(1)
+if len(data) == 0:
+    print("Error: 文件为空")
+    sys.exit(1)
 print("共读取 %d 条数据" % len(data))
-
 # --- 计算平均值 ---
 total = 0
 for v in data:

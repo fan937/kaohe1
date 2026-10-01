@@ -26,6 +26,7 @@ OUTPUT_DIR = "out"  # 输出目录
 data = []
 times = []
 cleaned = []
+cleaned_times=[]
 
 print("=== 传感器数据分析 ===")
 
@@ -53,9 +54,12 @@ for v in data:
 std = math.sqrt(acc / len(data))
 
 # --- 剔除离群值 ---
+i=0
 for v in data:
     if math.fabs(v -mean)<  2 * std:
         cleaned.append(v)
+        cleaned_times.append(times[i])
+    i+=1
 
 # --- 输出清洗后的数据 ---
 output_path = os.path.join( OUTPUT_DIR, OUTPUT_FILE)
@@ -64,8 +68,10 @@ if OUTPUT_DIR:
 f = open(output_path, "w")
 writer = csv.writer(f)
 writer.writerow(["time", "value"])
-for v in cleaned:
-    writer.writerow([v])
+for v in range(len(cleaned)):
+    a=cleaned_times[v]
+    b=cleaned[v]
+    writer.writerow([a,b])
 
 print("均值 mean = %.4f" % mean)
 print("标准差 std = %.4f" % std)

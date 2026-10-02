@@ -75,7 +75,7 @@ for v in data:
     i+=1
 
 # --- 输出清洗后的数据 ---
-output_path = os.path.join( OUTPUT_DIR, OUTPUT_FILE)
+output_path = "cleaned_data.csv"
 if OUTPUT_DIR:
     os.makedirs(OUTPUT_DIR,exist_ok=True)
 f = open(output_path, "w")

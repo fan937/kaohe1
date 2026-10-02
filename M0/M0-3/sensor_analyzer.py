@@ -17,11 +17,15 @@ sensor_analyzer.py  —— 上一届学长留下的"能用"的脚本
 """
 import math
 import csv
-import os
+import argparse
 import sys
 
-INPUT_FILE = "sensor_data.csv"
-OUTPUT_FILE = "cleaned_data.csv"
+parser = argparse.ArgumentParser()
+parser.add_argument("--input", default="sensor_data.csv",help="输入CSV文件")
+parser.add_argument("--output", default="cleaned_data.csv",help="输出CSV文件")
+args = parser.parse_args()
+INPUT_FILE = args.input
+OUTPUT_FILE = args.output
 
 
 data = []

@@ -22,7 +22,7 @@ import sys
 
 INPUT_FILE = "sensor_data.csv"
 OUTPUT_FILE = "cleaned_data.csv"
-OUTPUT_DIR = "out"  # 输出目录
+
 
 data = []
 times = []
@@ -76,8 +76,6 @@ for v in data:
 
 # --- 输出清洗后的数据 ---
 output_path = "cleaned_data.csv"
-if OUTPUT_DIR:
-    os.makedirs(OUTPUT_DIR,exist_ok=True)
 f = open(output_path, "w")
 writer = csv.writer(f)
 writer.writerow(["time", "value"])

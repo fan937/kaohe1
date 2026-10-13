@@ -114,7 +114,7 @@ def main():
             continue
 
         rec["started_at"] = time.time()
-        print(f"{Color.GREEN}[RUN] {task_name} | duration={task['duration']}s rate={task['success_rate']}{Color.RESET}")
+        print(f"正在执行{task_name} | duration={task['duration']}s rate={task['success_rate']}")
         ok = False
         MAX_TRIES = 3
 
@@ -129,9 +129,9 @@ def main():
 
             rec["attempts"] += 1
             if att > 0:
-                print(f"    {Color.YELLOW}[RETRY] {task_name} 第 {att+1}/3 次尝试{Color.RESET}")
+                print(f"{Color.YELLOW}[RETRY] {task_name} 第 {att+1}/3 次尝试{Color.RESET}")
             else:
-                print(f"    尝试 {att+1}/3 ... ", end="", flush=True)
+                print(f"尝试 {att+1}/3 ... ", end="", flush=True)
 
             t_sleep = task["duration"]
             step = 0.1
@@ -205,7 +205,7 @@ def main():
             c = Color.BLUE
         else:
             c = Color.RED
-        print(f"  {c}{name:<18s} → {s} (尝试:{r['attempts']}){Color.RESET}")
+        print(f"{c}{name} {s} (尝试:{r['attempts']})")
     print(f"\n总真实耗时:{total_dur:.3f} s")
 
 

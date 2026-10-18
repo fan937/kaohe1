@@ -25,7 +25,7 @@ def pearson_correlation(xs, ys):
         dx += a * a
         dy += b * b
         prod += a * b
-    if dx==0 or dy==0:
+    if abs(dx)< 1e-9 or abs(dy)< 1e-9:
         return None,None,None,None
     denom = math.sqrt(dx * dy)
     r = prod / denom
@@ -34,8 +34,15 @@ def pearson_correlation(xs, ys):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", help="yaml配置文件路径")
+    parser.add_argument("pos_config", nargs='?', help="yaml配置文件路径(位置参数)")
     args = parser.parse_args()
-    CONFIG_PATH = args.config
+    if not args.config and not args.pos_config:
+        print("Error: 必须提供配置文件路径")
+        sys.exit(1)
+    if args.config and args.pos_config:
+        print("Error: 只能提供一个配置文件路径")
+        sys.exit(1)
+    CONFIG_PATH = args.config or args.pos_config
 
     try:
         with open(CONFIG_PATH) as f:

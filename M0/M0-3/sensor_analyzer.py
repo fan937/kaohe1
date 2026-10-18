@@ -69,11 +69,13 @@ acc = 0
 for v in data:
     acc += (v - mean)**2
 std = math.sqrt(acc / len(data))
-
+if std < 1e-9:
+    print("Error: 方差为0,数据恒定,无法清洗")
+    sys.exit(1)
 # --- 剔除离群值 ---
 i=0
 for v in data:
-    if math.fabs(v -mean)<  2 * std:
+    if math.fabs(v -mean)<=  2 * std:
         cleaned.append(v)
         cleaned_times.append(times[i])
     i+=1

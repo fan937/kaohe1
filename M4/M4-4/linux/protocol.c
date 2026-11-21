@@ -71,6 +71,10 @@ void Protocol_ParseByte(ProtocolParse_t *p, uint8_t ch, StatusFrame_t *out_statu
     {
         p->state = WAIT_LEN;
     }
+    else if(ch == FRAME_HEAD1)
+    {
+        p->state = WAIT_HEAD2;          /* AA AA 55：第二个 AA 就是新帧头，留着别丢，也不计坏帧 */
+    }
     else
     {
         s_bad_local++;                  /* 假帧头：0xAA 后面不是 0x55 */

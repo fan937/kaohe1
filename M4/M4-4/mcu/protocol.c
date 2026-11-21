@@ -75,6 +75,10 @@ void Protocol_ParseByte(uint8_t ch)
             {
                 parser.state = WAIT_LEN;
             }
+            else if(ch == FRAME_HEAD1)
+            {
+                parser.state = WAIT_HEAD2;   /* AA AA 55：这个 AA 就是新帧头，留在这里别丢 */
+            }
             else
             {   
                 parser.state = WAIT_HEAD1;

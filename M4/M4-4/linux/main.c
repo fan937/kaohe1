@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "serial.h"
 #include "ringbuf.h"
@@ -32,6 +33,9 @@ static SerialDev_t g_ser;
 static RingBuf_t g_rb;
 static ProtocolParse_t g_parser;
 static FILE *g_csv_fp = NULL;
+static uint64_t g_t_lost        = 0;   /* 检测到断开的时刻 */
+static uint64_t g_t_reopen      = 0;   /* 重新 open 成功的时刻 */
+static uint64_t g_t_first_frame = 0;   /* 恢复后第一帧合法帧的时刻 */
 
 #define SEND_PERIOD_MS 50
 
@@ -83,6 +87,7 @@ uint64_t get_ms(void)
 
 int main(int argc, char **argv)
 {
+    setvbuf(stdout, NULL, _IOLBF, 1 << 16);
     parse_args(argc, argv, &g_cfg);
     RingBuf_Init(&g_rb);
     Parser_Reset(&g_parser);
@@ -103,6 +108,20 @@ int main(int argc, char **argv)
 
         while(1){
         uint64_t now_ms = get_ms();
+        static int s_prev_conn = -1;
+        if(s_prev_conn < 0)
+        {
+            s_prev_conn = g_ser.is_connected;       /* -1 表示还没初始化 */
+        }
+        else if(s_prev_conn && !g_ser.is_connected)
+        {
+            g_t_lost        = get_ms();
+            g_t_reopen      = 0;
+            g_t_first_frame = 0;
+            fprintf(stderr,"[LOST ] t=%llu ms, device lost\n",
+                    (unsigned long long)g_t_lost);
+        }
+        s_prev_conn = g_ser.is_connected;
 
         // ========== 1.帧字节间隔超时检测，和MCU对齐 FRAME_TIMEOUT_MS=50 ==========
         if(g_parser.state != WAIT_HEAD1)
@@ -124,8 +143,11 @@ int main(int argc, char **argv)
             FD_SET(g_ser.fd, &rfds);
             int ret = select(g_ser.fd+1, &rfds, NULL, NULL, &tv);
             if(ret < 0){
-                /* 设备消失/被拔（EBADF、ENODEV 等）：标记断开，下一轮重连 */
-                fprintf(stderr,"[WARN] select error (%d), device lost\n", ret);
+                g_t_lost        = get_ms();
+                g_t_reopen      = 0;
+                g_t_first_frame = 0;
+                fprintf(stderr,"[LOST ] t=%llu ms, device lost\n",
+                        (unsigned long long)g_t_lost);
                 serial_close(&g_ser);
                 g_ser.is_connected = 0;
                 continue;
@@ -139,15 +161,57 @@ int main(int argc, char **argv)
                         RingBuf_Push(&g_rb, tmp[i]);
                     }
                 }
+                else if(n < 0){
+                    if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR){
+                        /* 非阻塞读暂无数据 / 被信号打断：不是拔线，什么都不做 */
+                    }
+                    else{
+                        g_t_lost        = get_ms();
+                        g_t_reopen      = 0;
+                        g_t_first_frame = 0;
+                        fprintf(stderr,"[LOST ] t=%llu ms, read error(%d)\n",
+                                (unsigned long long)g_t_lost, errno);
+                        serial_close(&g_ser);
+                        g_ser.is_connected = 0;
+                        continue;
+                    }
+                }
             }
-        }else{
-            /* 断线重试 */
-            fprintf(stderr,"[WARN] reconnect %s ...\n", g_cfg.dev);
-            sleep(1);
-            serial_open(&g_ser, g_cfg.dev, g_cfg.baud);
-            last_ok_ms = get_ms();     /* 重连后重置，别把断线时长算进去 */
+        }   else{
+            /* 断线重试：100ms 轮询，比 sleep(1) 快最多 900ms */
+            struct timespec ts_retry = {0, 100 * 1000 * 1000};   /* 100ms = 1e8 ns */
+            nanosleep(&ts_retry, NULL);
+            if(serial_open(&g_ser, g_cfg.dev, g_cfg.baud) == 0)
+            {
+                g_t_reopen = get_ms();
+                if(g_t_lost != 0)
+                {
+                    fprintf(stderr,"[REOPEN] t=%llu ms  (lost->open = %llu ms)\n",
+                            (unsigned long long)g_t_reopen,
+                            (unsigned long long)(g_t_reopen - g_t_lost));
+                }
+                else
+                {
+                    fprintf(stderr,"[REOPEN] t=%llu ms  (首次连接，无断开起点)\n",
+                            (unsigned long long)g_t_reopen);
+                }
+            }
+            else
+            {
+                continue;                 /* open 失败，下一轮再试 */
+            }
+            last_ok_ms    = get_ms();
             last_bad_tick = get_ms();
             continue;
+        }
+        uint64_t now = get_ms();
+        if(g_cfg.enable_send && (now - last_send_ms >= SEND_PERIOD_MS)){
+            uint8_t frame[128];
+            int flen = Protocol_MakeSpeedFrame(frame, g_cfg.send_rpm1, g_cfg.send_rpm2);
+            if(flen>0){
+                serial_write(&g_ser, frame, flen);
+            }
+            last_send_ms = now;
         }
 
         // ==========2.从环形缓冲区取字节，调用解析，补齐第三个参数 ==========
@@ -162,6 +226,16 @@ int main(int argc, char **argv)
             {
                 //终端打印
                 last_ok_ms =get_ms();
+                if(g_t_lost && g_t_first_frame == 0)
+                {
+                    g_t_first_frame = get_ms();
+                    fprintf(stderr,
+                        "\n[RECOVER] 拔线恢复总耗时 = %llu ms"
+                        "   (open->首帧 = %llu ms)\n\n",
+                        (unsigned long long)(g_t_first_frame - g_t_lost),
+                        (unsigned long long)(g_t_first_frame - g_t_reopen));
+                        g_t_lost =0;
+                }
                 printf("L_rpm:%d R_rpm:%d pitch:%d hb:%u bad:%u timeout:%u overflow:%u\n",
                     st.l_rpm, st.r_rpm, st.pitch, st.heartbeat,
                     st.bad_frame, st.timeout_cnt, st.overflow_cnt);
@@ -180,15 +254,7 @@ int main(int argc, char **argv)
         }
 
         //定时下发转速指令
-        uint64_t now = get_ms();
-        if(g_cfg.enable_send && (now - last_send_ms >= SEND_PERIOD_MS)){
-            uint8_t frame[128];
-            int flen = Protocol_MakeSpeedFrame(frame, g_cfg.send_rpm1, g_cfg.send_rpm2);
-            if(flen>0){
-                serial_write(&g_ser, frame, flen);
-            }
-            last_send_ms = now;
-        }
+        
             /* ==========3.每秒统计打印（与帧无关，错配时也看得见）========== */
         static uint64_t last_stat = 0;
         uint64_t t_stat = get_ms();
@@ -198,7 +264,7 @@ int main(int argc, char **argv)
         {
             if(t_now - last_bad_tick >= STALL_TIMEOUT_MS)
             {
-                Protocol_CountBad();
+                
                 last_bad_tick = t_now;
             }
         }
@@ -207,6 +273,7 @@ int main(int argc, char **argv)
                 printf("[STAT] baud=%d  rx=%u B/s  mcu_bad=%u  local_bad=%u  ok=%u\n",
                        g_cfg.baud, rx_bytes, st.bad_frame,
                        Protocol_GetBad(), Protocol_GetOk());
+                fflush(stdout);
                 rx_bytes = 0;                       // 新增，每秒清零
                 last_stat = t_stat;
         }

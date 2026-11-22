@@ -5,7 +5,7 @@
 static uint32_t s_bad_local = 0;
 static uint16_t s_junk_cnt  = 0;
 static uint32_t s_frame_ok  = 0;
-#define JUNK_LIMIT 32
+#define JUNK_LIMIT 8
 
 void     Protocol_CountBad(void) { s_bad_local++; }
 uint32_t Protocol_GetBad(void)   { return s_bad_local; }
